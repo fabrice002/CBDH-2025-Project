@@ -274,8 +274,7 @@ def nettoyer_donnees(df, seuil_similarite_quartier=85, seuil_similarite_professi
     # 8️⃣ Imputation des valeurs manquantes pour Taille, Poids et Taux d’hémoglobine
     df['Taille'] = df['Taille'].apply(lambda x: np.random.uniform(1, 2) if pd.isna(x) else x)
     
-    df.loc[(df['Taille'] >= 3), 'Taille'] = np.nan
-    df['Taille'] =  df['Taille'].fillna(df['Taille'].median())
+    df.loc[df['Taille'] >= 3, 'Taille'] /= 100  # Conversion des tailles en mètres
     
     df['Taux d’hémoglobine'] = df['Taux d’hémoglobine'].astype(str).str.replace(',', '.').str.extract(r'(\d+\.?\d*)').astype(float)
 
