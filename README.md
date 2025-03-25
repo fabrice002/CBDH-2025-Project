@@ -20,8 +20,8 @@ Cette application Streamlit permet d'analyser et de visualiser les données rela
 ### Étapes
 1. Clonez le dépôt GitHub :
    ```bash
-   git clone [https://github.com/votre-utilisateur/votre-repo.git](https://github.com/fabrice002/CBDH-2025-Project/)
-   cd votre-repo
+   git clone https://github.com/fabrice002/CBDH-2025-Project.git
+   cd CBDH-2025-Project
    ```
 2. Installez les dépendances :
    ```bash
@@ -31,12 +31,10 @@ Cette application Streamlit permet d'analyser et de visualiser les données rela
    ```bash
    streamlit run app.py
    ```
+4. Une fois l'application ouverte, sélectionnez `Updated Challenge dataset.xlsx`
 
 ## Configuration
-- Assurez-vous d'avoir un fichier Excel contenant les données des donneurs.
-- Ajoutez un fichier `cleaning.py` définissant la fonction `nettoyer_donnees()`.
-- Placez un logo `logo.png` dans le dossier racine.
-- Un modèle de machine learning `modele_prediction.pkl` doit être disponible pour la prédiction.
+- Le fichier `Excel Updated Challenge dataset.xlsx` et le modèle de machine learning `modele_prediction.pkl` sont présents dans le répertoire et doivent être assurés d'être disponibles.
 
 ## Technologies utilisées
 - **Streamlit** : Interface utilisateur interactive.
@@ -44,4 +42,10 @@ Cette application Streamlit permet d'analyser et de visualiser les données rela
 - **Plotly** : Visualisation interactive.
 - **Folium** : Cartographie des donneurs.
 - **scikit-learn** : Modèle de prédiction de l'éligibilité.
+
+## Auteurs
+- Ouandji Hervé Fabrice
+- Teng Kana Arielle
+- Moussa Adou
+- Dongmo Aziz C.
 
