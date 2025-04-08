@@ -76,6 +76,7 @@ def preprocess_eligibility_data(df):
 
 
 
+
 def normalize_dates(df, column_name):
     """
     Normalise les dates dans la colonne spécifiée d'un DataFrame.
@@ -111,7 +112,6 @@ def normalize_dates(df, column_name):
     df[column_name].fillna(df[column_name].mode()[0], inplace=True)
 
     return df
-
 
 def clean_and_impute_age(df, date_col='Date de naissance', profession_col='Profession', ref_date='2019-12-31'):
     """
@@ -155,6 +155,9 @@ def clean_and_impute_age(df, date_col='Date de naissance', profession_col='Profe
     df['age'] = df['age'].astype(int)
 
     return df
+
+
+
 def normaliser_ras(valeur):
         """ Regroupe toutes les variations de 'RAS' en une seule valeur standardisée. """
         patterns_ras = [
@@ -166,6 +169,34 @@ def normalize_quarter_name(name):
         name = unidecode(str(name)).upper().strip()
         name = re.sub(r'[^A-Z0-9 ]', '', name)  # Supprime caractères spéciaux
         return re.sub(r'\s+', ' ', name)  # Supprime espaces multiples
+    
+def imputer_poids(data):
+    if pd.isna(data['Poids']):  # Vérifie si la valeur est manquante
+        if data['ÉLIGIBILITÉ AU DON.'] == 'Eligible':
+            return np.random.randint(60, 100)  # Poids entre 60 et 150
+        else: 
+            return np.nan
+    return data['Poids']
+
+def imputer_tauxhemoglobine(data):
+    if pd.isna(data['Taux d’hémoglobine']):  # Vérifie si la valeur est manquante
+        if data['Genre'] == 'Homme':
+            if data['ÉLIGIBILITÉ AU DON.'] == 'Temporairement Non-eligible':
+                return np.random.uniform(6, 13)  # Valeur aléatoire entre 6 et 13
+            elif data['ÉLIGIBILITÉ AU DON.'] == 'Eligible' :
+                return np.random.uniform(13, 18)
+            else: 
+                return np.nan
+        else:  # Femme
+            if data['ÉLIGIBILITÉ AU DON.'] == 'Temporairement Non-eligible':
+                return np.random.uniform(5, 12)  # Valeur aléatoire entre 5 et 12
+            elif data['ÉLIGIBILITÉ AU DON.'] == 'Eligible' :
+                return np.random.uniform(12, 18)
+            else:  
+                return np.nan
+    return data['Taux d’hémoglobine']
+
+    
 
 def nettoyer_donnees(df, seuil_similarite_quartier=85, seuil_similarite_profession=85):
     """
@@ -183,6 +214,9 @@ def nettoyer_donnees(df, seuil_similarite_quartier=85, seuil_similarite_professi
     🔟 Suppression des colonnes inutiles
     1️⃣1️⃣ Normalisation des dates
     """
+    
+     # Fixer la seed pour la reproductibilité des résultats
+    np.random.seed(42)
     
     # 1️⃣ Nettoyage des valeurs manquantes et normalisation des RAS
     colonnes_a_normaliser = ['Nationalité', 'Religion', 'Quartier de Résidence', 'Arrondissement de résidence']
@@ -272,17 +306,41 @@ def nettoyer_donnees(df, seuil_similarite_quartier=85, seuil_similarite_professi
     df = regrouper_professions(df, 'Profession', seuil_similarite_profession)
     
     # 8️⃣ Imputation des valeurs manquantes pour Taille, Poids et Taux d’hémoglobine
-    df['Taille'] = df['Taille'].apply(lambda x: np.random.uniform(1, 2) if pd.isna(x) else x)
-    
+    df['Taille'] = df['Taille'].apply(lambda x: np.random.uniform(1.5, 2) if pd.isna(x) else x)
     df.loc[df['Taille'] >= 3, 'Taille'] /= 100  # Conversion des tailles en mètres
+    # df.loc[(df['Taille'] >= 3), 'Taille'] = np.nan
+    # df['Taille'] = df['Taille'].fillna(df['Taille'].median())
+
+    df['Taux d’hémoglobine'] = df.apply(imputer_tauxhemoglobine, axis=1)
+
+    df['Poids'] = df.apply(imputer_poids, axis=1) 
+    df['Poids'] = df['Poids'].astype(float)
+    
+    #  Calcul de la moyenne des poids par arrondissement (en ignorant les NaN)
+    mediane_par_arr = df.groupby('Arrondissement de résidence')['Poids'].median()
+
+    def remplacer_par_mediane(row):
+        if pd.isna(row['Poids']):
+            return mediane_par_arr.get(row['Arrondissement de résidence'], np.nan)
+        return row['Poids']
+
+    df['Poids'] = df.apply(remplacer_par_mediane, axis=1)
+    df['Poids'] = df['Poids'].fillna(df['Poids'].median())  # Remplacer les NaN restants par la médiane globale
+
     
     df['Taux d’hémoglobine'] = df['Taux d’hémoglobine'].astype(str).str.replace(',', '.').str.extract(r'(\d+\.?\d*)').astype(float)
+    df.loc[df['Taux d’hémoglobine'] > 20, 'Taux d’hémoglobine'] /= 10  # Valeurs aberrantes
+    
+    mediane_hemo_par_arr = df.groupby('Arrondissement de résidence')['Taux d’hémoglobine'].median()
 
-    df['Taux d’hémoglobine'] = df.apply(
-        lambda data: np.random.uniform(6, 18) if pd.isna(data['Taux d’hémoglobine']) else data['Taux d’hémoglobine'], axis=1
-    )
+    # Fonction pour imputer le taux d'hémoglobine avec la médiane de l'arrondissement
+    def imputer_hemo(row):
+        if pd.isna(row['Taux d’hémoglobine']):
+            return mediane_hemo_par_arr.get(row['Arrondissement de résidence'], np.nan)
+        return row['Taux d’hémoglobine']
 
-    df['Poids'] = df.apply(lambda data: np.random.randint(30, 100) if pd.isna(data['Poids']) else data['Poids'], axis=1)
+    # Appliquer l'imputation sur les valeurs manquantes
+    df['Taux d’hémoglobine'] = df.apply(imputer_hemo, axis=1)
 
     # 9️⃣ Traitement des données d'éligibilité au don
     df = preprocess_eligibility_data(df)
@@ -295,7 +353,6 @@ def nettoyer_donnees(df, seuil_similarite_quartier=85, seuil_similarite_professi
     
     # 1️⃣2️⃣ Normalisation des dates
     df = normalize_dates(df, 'Date de remplissage de la fiche')
-    
     df.columns = df.columns.str.replace(" ", "_")
 
     return df
